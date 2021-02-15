@@ -9,10 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
@@ -49,12 +46,12 @@ public class MarkController {
             ZipEntry zipEntry = zis.getNextEntry();
             while (zipEntry != null) {
                 if (zipEntry.isDirectory()) {
-                    logger.info("There is directory in the archive.");
+                    logger.debug("There is directory in the archive.");
                 } else {
-                    //todo:check zip entry name extenshen csv
                     String entryName = FilenameUtils.getExtension(zipEntry.getName());
                     if (!entryName.equals("csv")) {
                         logger.info("A " + entryName + " file has been passed in the archive. Zip file has to include csv files.");
+                        //выдать исключение не инфор а варн если лог
                     }
                     StringBuilder s = new StringBuilder();
                     int read = 0;
@@ -63,7 +60,6 @@ public class MarkController {
                         s.append(new String(buffer, 0, read));
                     }
                     csvHolder.add(s.toString());
-                    zipEntry = zis.getNextEntry();
                 }
                 zipEntry = zis.getNextEntry();
             }
