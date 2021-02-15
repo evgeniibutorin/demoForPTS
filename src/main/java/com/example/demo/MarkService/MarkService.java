@@ -52,39 +52,39 @@ public class MarkService {
         }
     }
 
-    public void putIntoDB (ArrayList<String> fromController){
-        for (int i = 0; i< fromController.size(); i++){
+    public void putIntoDB(ArrayList<String> fromController) {
+        for (int i = 0; i < fromController.size(); i++) {
             String line = fromController.get(i);
             final String[] s = line.split(",");
-            for (int j = 0; i< fromController.size(); i++){
+            for (int j = 0; i < fromController.size(); i++) {
                 String word = s[i];
-                if(word.contains("#")){
-                    logger.info("The comment was found in csv file: "+word);
+                if (word.contains("#")) {
+                    logger.info("The comment was found in csv file: " + word);
                 }
-                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word)!=null){
+                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word) != null && !s[i + 1].contains("mark")) {
                     MarkQuantity markQuantity = new MarkQuantity();
-                    markQuantity.setQuantity(Integer.parseInt(s[i+1]));
+                    markQuantity.setQuantity(Integer.parseInt(s[i + 1]));
                     markQuantity.setMark(markRepository.findFirstByName(word));
                     markQuantityRepository.save(markQuantity);
                     logger.info("The quantity for " + word + " has been added to the database.");
 
                 }
-                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word)==null){
+                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word) == null) {
+                    if (!s[i + 1].contains("mark")) {
+                        MarkQuantity markQuantity = new MarkQuantity();
+                        markQuantity.setQuantity(Integer.parseInt(s[i + 1]));
+                        markQuantity.setMark(markRepository.findFirstByName(word));
+                        markQuantityRepository.save(markQuantity);
+                    }
                     Mark mark = new Mark();
                     mark.setName(word);
                     markRepository.save(mark);
-                    MarkQuantity markQuantity = new MarkQuantity();
-                    markQuantity.setQuantity(Integer.parseInt(s[i+1]));
-                    markQuantity.setMark(markRepository.findFirstByName(word));
-                    markQuantityRepository.save(markQuantity);
                     logger.info(word + " with quantity has been added to the database.");
                 }
 
             }
         }
     }
-
-
 
 
 }
