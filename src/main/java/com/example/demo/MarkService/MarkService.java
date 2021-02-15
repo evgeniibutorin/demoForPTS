@@ -32,7 +32,7 @@ public class MarkService {
 
     public List<Mark> parseCSVFile(final MultipartFile file) throws Exception {
         final List<Mark> marks = new ArrayList<>();
-        try (final BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) { // BufferedReader класс считывает текст из символьного потока ввода, буферизируя прочитанные символы. InputStreamReader получает данные из потока, считывает байты и декодирует их в символы
+        try (final BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             String line;
             while ((line = br.readLine()) != null) {
                 final String[] data = line.split(",");
@@ -47,7 +47,7 @@ public class MarkService {
             }
             return markRepository.saveAll(marks);
         } catch (final IOException e) {
-            logger.error("Failed to parse CSV file ", e); // объявление логера ошибок
+            logger.error("Failed to parse CSV file ", e);
             throw new Exception("Failed to parse CSV file ", e);
         }
     }
@@ -59,9 +59,9 @@ public class MarkService {
             for (int j = 0; i< fromController.size(); i++){
                 String word = s[i];
                 if(word.contains("#")){
-                    //todo:logg
+                    logger.info("The comment was found in csv file: "+word);
                 }
-                if (word.contains("mark") && markRepository.findFirstByName(word)!=null){
+                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word)!=null){
                     MarkQuantity markQuantity = new MarkQuantity();
                     markQuantity.setQuantity(Integer.parseInt(s[i+1]));
                     markQuantity.setMark(markRepository.findFirstByName(word));
@@ -69,7 +69,7 @@ public class MarkService {
                     logger.info("The quantity for " + word + " has been added to the database.");
 
                 }
-                if (word.contains("mark") && markRepository.findFirstByName(word)==null){
+                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word)==null){
                     Mark mark = new Mark();
                     mark.setName(word);
                     markRepository.save(mark);
