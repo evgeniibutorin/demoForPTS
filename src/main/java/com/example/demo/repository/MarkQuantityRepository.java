@@ -9,5 +9,6 @@ import java.util.List;
 
 public interface MarkQuantityRepository extends JpaRepository<MarkQuantity, Integer> {
 
+    List<Integer> findMarkQuantitiesByMark(Mark mark);
 
 }

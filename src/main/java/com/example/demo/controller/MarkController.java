@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.MarkService.MarkQuantityService;
 import com.example.demo.MarkService.MarkService;
+import com.example.demo.entity.Mark;
 import com.example.demo.repository.MarkRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -30,7 +31,6 @@ public class MarkController {
         this.markService = markService;
         this.markQuantityService = markQuantityService;
     }
-
 
     @PostMapping(value = "/getMarksAndSumQuantity", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public @ResponseBody
@@ -67,7 +67,7 @@ public class MarkController {
     }
 
     @GetMapping(value = "/findMarksWithArrayQuantity", produces = "application/json")
-    public List<Object> findMarksWithArrayQuantity() {
+    public List<Mark> findMarksWithArrayQuantity() {
         return markRepository.findAllMarksWithArrayQuantity();
     }
 
@@ -89,13 +89,9 @@ public class MarkController {
         return objectMapper.writeValueAsString(markRepository.findAllMarksWithArrayQuantity()).getBytes();
     }
 
-
-
     @GetMapping(value = "/findMarks", produces = "application/json")
     public List<Object> findMarks() {
         return markRepository.findAllMarks();
     }
-
-
 
 }

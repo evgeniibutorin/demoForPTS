@@ -10,13 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -32,7 +28,7 @@ public class MarkService {
         this.markQuantityRepository = markQuantityRepository;
     }
 
-    public ArrayList<String> parseZipToArrayString(MultipartFile fileZip)throws Exception {
+    public ArrayList<String> parseZipToArrayString(MultipartFile fileZip) throws Exception {
         String extension = FilenameUtils.getExtension(fileZip.getOriginalFilename());
         if (!extension.equals("zip")) {
             throw new RuntimeException("A " + extension + " file has been passed in the controller. Zip file expected.");
@@ -49,7 +45,7 @@ public class MarkService {
                         String entryName = FilenameUtils.getExtension(zipEntry.getName());
                         if (!entryName.equals("csv")) {
                             logger.info("A " + entryName + " file has been passed in the archive. Zip file has to include csv files.");
-                            //выдать исключение не инфор а варн если лог
+                            //todo:выдать исключение не инфор а варн если лог
                         }
                         StringBuilder s = new StringBuilder();
                         int read = 0;
@@ -69,33 +65,11 @@ public class MarkService {
         }
     }
 
-        public List<Mark> parseCSVFile(final MultipartFile file) throws Exception {
-        final List<Mark> marks = new ArrayList<>();
-        try (final BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                final String[] data = line.split(",");
-                if (markRepository.findFirstByName(data[0]) != null) {
-                    logger.info("Object " + data[0] + " has been added to the database");
-                } else {
-                    final Mark mark = new Mark();
-                    mark.setName(data[0]);
-                    marks.add(mark);
-                    logger.info("Object " + data[0] + " is contained in the database");
-                }
-            }
-            return markRepository.saveAll(marks);
-        } catch (final IOException e) {
-            logger.error("Failed to parse CSV file ", e);
-            throw new Exception("Failed to parse CSV file ", e);
-        }
-    }
-
     public void createMarkAndQuantity(ArrayList<String> fromController) {
         for (int i = 0; i < fromController.size(); i++) {
             String line = fromController.get(i);
             logger.info("Line from controller: " + line);
-            final String[] s = line.split("\n");//в массиве лежат строки после разделения по пробелам
+            final String[] s = line.split("\n");
             for (int j = 0; j < s.length; j++) {
                 String word = s[j];
                 if (s[j].contains("#")) {
@@ -135,24 +109,24 @@ public class MarkService {
         for (int i = 0; i < fromController.size(); i++) {
             String line = fromController.get(i);
             logger.info("Line from controller: " + line);
-            final String[] s = line.split("\n");//в массиве лежат строки после разделения по пробелам
+            final String[] s = line.split("\n");
             for (int j = 0; j < s.length; j++) {
                 String word = s[j];
                 if (s[j].contains("#")) {
                     logger.info("The comment was found in csv file: " + word);
-                } else {
+                } else if((s[j].contains(","))) {
                     String[] StringAfterSplit = word.split(",");
-                    if (StringAfterSplit.length == 2 && StringAfterSplit[0].contains("mark") && !resultMap.containsKey(StringAfterSplit[0])) {
+                    if (StringAfterSplit[0].contains("mark") && !resultMap.containsKey(StringAfterSplit[0])) {
                         resultMap.put(StringAfterSplit[0], new ArrayList<Integer>(Integer.parseInt(StringAfterSplit[1])));
                         logger.info("The quantity " + StringAfterSplit[1] + " for " + StringAfterSplit[0] + " has been added to the HashMap.");
                     }
-                    if (StringAfterSplit.length == 2 && StringAfterSplit[0].contains("mark") && resultMap.containsKey(StringAfterSplit[0])) {
+                    if (StringAfterSplit[0].contains("mark") && resultMap.containsKey(StringAfterSplit[0])) {
                         resultMap.get(StringAfterSplit[0]).add(Integer.parseInt(StringAfterSplit[1]));
                         logger.info(StringAfterSplit[0] + " with quantity " + StringAfterSplit[1] + " has been added to the HashMap.");
                     }
-                    if (StringAfterSplit.length < 2 && StringAfterSplit[0].contains("mark") && !resultMap.containsKey(StringAfterSplit[0])) {
-                        resultMap.put(StringAfterSplit[0], new ArrayList<Integer>());
-                        logger.info(StringAfterSplit[0] + " without quantity has been added to the database.");
+                    else if (!s[j].contains(",") && s[j].contains("mark") && !resultMap.containsKey(s[j])) {
+                        resultMap.put(s[j], new ArrayList<Integer>());
+                        logger.info(s[j] + " without quantity has been added to the database.");
                     }
                 }
             }

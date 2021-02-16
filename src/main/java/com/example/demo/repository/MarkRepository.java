@@ -11,20 +11,28 @@ public interface MarkRepository extends JpaRepository<Mark, Integer> {
 
     Mark findFirstByName(String name);
 
+
     @Query("SELECT m.name, SUM (mq.quantity) AS MarkQuantity FROM Mark m LEFT JOIN MarkQuantity mq")
     List<Object> findAllMarksAndQuantity();
 
     @Query("SELECT m.name, SUM (mq.quantity) AS MarkQuantity FROM Mark m INNER JOIN MarkQuantity mq")
     List<Object> findAllMarksWithoutNullQuantity();
 
-    @Query("SELECT m.name, mq.quantity FROM Mark m LEFT JOIN MarkQuantity mq ORDER BY mq.quantity")
-    List<Object> findAllMarksWithArrayQuantity();
+    @Query("SELECT m FROM Mark m")
+    List<Mark> findAllMarksWithArrayQuantity();
 
     @Query("SELECT m.name, q.quantity FROM MarkQuantity q LEFT JOIN q.mark m")
     List<Object> findAllMarks();
+
+    //@Query("SELECT m.name, q.quantity FROM MarkQuantity q inner JOIN q.mark m")
 
 //@Query("select u.userName from User u inner join u.area ar where ar.idArea = :idArea")
 // select r from Recipe r join r.ingredientList i where i.name = :ingredient
 
     //"SELECT p FROM Professor e JOIN e.phones p"
+
+    //"SELECT m.name, mq.quantity FROM Mark m LEFT JOIN MarkQuantity mq ORDER BY mq.quantity"
+
+    //@Query("SELECT m.name, q.quantity FROM Mark m LEFT JOIN m.markQuantities q")
+
 }
