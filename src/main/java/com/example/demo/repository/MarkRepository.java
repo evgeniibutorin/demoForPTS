@@ -22,6 +22,7 @@ public interface MarkRepository extends JpaRepository<Mark, Integer> {
 
     @Query("SELECT m.name, q.quantity FROM MarkQuantity q LEFT JOIN q.mark m")
     List<Object> findAllMarks();
+
 //@Query("select u.userName from User u inner join u.area ar where ar.idArea = :idArea")
 // select r from Recipe r join r.ingredientList i where i.name = :ingredient
 
