@@ -4,19 +4,25 @@ import com.example.demo.entity.Mark;
 import com.example.demo.entity.MarkQuantity;
 import com.example.demo.repository.MarkQuantityRepository;
 import com.example.demo.repository.MarkRepository;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Service
 public class MarkService {
+
 
     private final MarkRepository markRepository;
 
@@ -28,7 +34,6 @@ public class MarkService {
         this.markRepository = markRepository;
         this.markQuantityRepository = markQuantityRepository;
     }
-
 
     public List<Mark> parseCSVFile(final MultipartFile file) throws Exception {
         final List<Mark> marks = new ArrayList<>();
@@ -52,39 +57,94 @@ public class MarkService {
         }
     }
 
+
+   /* public List<Mark> parseCSVFile2(final MultipartFile file) throws IOException {
+        String extension = FilenameUtils.getExtension(file.getOriginalFilename());
+        if (!extension.equals("zip")) {
+            throw new RuntimeException("A " + extension + " file has been passed in the controller. Zip file expected.");
+        }
+        ZipInputStream zis = new ZipInputStream(file.getInputStream());
+        try {
+            ArrayList<String> csvHolder = new ArrayList<>();
+            ZipEntry zipEntry = zis.getNextEntry();
+            File csvFile = new File(zipEntry);
+
+            zipEntry = zis.getNextEntry();
+        }
+    }*/
+
+            //todo: перефразировать putIntoDB метод
     public void putIntoDB(ArrayList<String> fromController) {
         for (int i = 0; i < fromController.size(); i++) {
             String line = fromController.get(i);
-            final String[] s = line.split(",");
-            for (int j = 0; i < fromController.size(); i++) {
-                String word = s[i];
-                if (word.contains("#")) {
+            logger.info("Line from controller: " + line);
+            final String[] s = line.split("\n");//в массиве лежат строки после разделения по пробелам
+            for (int j = 0; j < s.length; j++) {
+                String word = s[j];
+                if (s[j].contains("#")) {
                     logger.info("The comment was found in csv file: " + word);
-                }
-                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word) != null && !s[i + 1].contains("mark")) {
-                    MarkQuantity markQuantity = new MarkQuantity();
-                    markQuantity.setQuantity(Integer.parseInt(s[i + 1]));
-                    markQuantity.setMark(markRepository.findFirstByName(word));
-                    markQuantityRepository.save(markQuantity);
-                    logger.info("The quantity for " + word + " has been added to the database.");
-
-                }
-                if (!word.contains("#") && word.contains("mark") && markRepository.findFirstByName(word) == null) {
-                    if (!s[i + 1].contains("mark")) {
+                } else {
+                    String[] afterSplit = word.split(",");
+                    if (afterSplit.length == 2 && afterSplit[0].contains("mark") && markRepository.findFirstByName(afterSplit[0]) != null) {
                         MarkQuantity markQuantity = new MarkQuantity();
-                        markQuantity.setQuantity(Integer.parseInt(s[i + 1]));
-                        markQuantity.setMark(markRepository.findFirstByName(word));
+                        markQuantity.setQuantity(Integer.parseInt(afterSplit[1]));
+                        markQuantity.setMark(markRepository.findFirstByName(afterSplit[0]));
                         markQuantityRepository.save(markQuantity);
+                        logger.info("The quantity " + afterSplit[1] + " for " + afterSplit[0] + " has been added to the database.");
                     }
-                    Mark mark = new Mark();
-                    mark.setName(word);
-                    markRepository.save(mark);
-                    logger.info(word + " with quantity has been added to the database.");
+                    if (afterSplit.length == 2 && afterSplit[0].contains("mark") && markRepository.findFirstByName(afterSplit[0]) == null) {
+                        Mark mark = new Mark();
+                        mark.setName(afterSplit[0]);
+                        markRepository.save(mark);
+                        MarkQuantity markQuantity = new MarkQuantity();
+                        markQuantity.setQuantity(Integer.parseInt(afterSplit[1]));
+                        markQuantity.setMark(markRepository.findFirstByName(afterSplit[0]));
+                        markQuantityRepository.save(markQuantity);
+                        logger.info(afterSplit[0] + " with quantity " + afterSplit[1] + " has been added to the database.");
+                    }
+                    if (afterSplit.length < 2 && afterSplit[0].contains("mark") && markRepository.findFirstByName(afterSplit[0]) == null) {
+                        Mark mark = new Mark();
+                        mark.setName(afterSplit[0]);
+                        markRepository.save(mark);
+                        logger.info(afterSplit[0] + " without quantity has been added to the database.");
+                    }
                 }
-
             }
         }
     }
+
+    public HashMap<String, ArrayList<Integer>> putIntoDB2(ArrayList<String> fromController) {
+        HashMap<String, ArrayList<Integer>> resultMap = new HashMap<>();
+        for (int i = 0; i < fromController.size(); i++) {
+            String line = fromController.get(i);
+            logger.info("Line from controller: " + line);
+            final String[] s = line.split("\n");//в массиве лежат строки после разделения по пробелам
+            for (int j = 0; j < s.length; j++) {
+                String word = s[j];
+                if (s[j].contains("#")) {
+                    logger.info("The comment was found in csv file: " + word);
+                } else {
+                    String[] afterSplit = word.split(",");
+                    if (afterSplit.length == 2 && afterSplit[0].contains("mark") && !resultMap.containsKey(afterSplit[0])) {
+                        resultMap.put(afterSplit[0],new ArrayList<Integer>(Integer.parseInt(afterSplit[1])));
+                        logger.info("The quantity " + afterSplit[1] + " for " + afterSplit[0] + " has been added to the HashMap.");
+                    }
+                    if (afterSplit.length == 2 && afterSplit[0].contains("mark") && resultMap.containsKey(afterSplit[0])) {
+                        resultMap.get(afterSplit[0]).add(Integer.parseInt(afterSplit[1]));
+                        logger.info(afterSplit[0] + " with quantity " + afterSplit[1] + " has been added to the HashMap.");
+                    }
+                    if (afterSplit.length < 2 && afterSplit[0].contains("mark") && markRepository.findFirstByName(afterSplit[0]) == null) {
+                        resultMap.put(afterSplit[0],new ArrayList<Integer>());
+                        logger.info(afterSplit[0] + " without quantity has been added to the database.");
+                    }
+                }
+            }
+            System.out.println(resultMap);
+        }
+       return resultMap;
+    }
+
+
 
 
 }
