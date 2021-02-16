@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.service.MarkService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -12,33 +13,34 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@RequiredArgsConstructor
 public class MarkController {
 
-    private ObjectMapper objectMapper;
-    private MarkService markService;
+    private final static Logger logger = LoggerFactory.getLogger(MarkController.class);
 
-    Logger logger = LoggerFactory.getLogger(MarkController.class);
+    private final ObjectMapper objectMapper;
+    private final MarkService markService;
 
-    public MarkController(ObjectMapper objectMapper, MarkService markService) {
-        this.objectMapper = objectMapper;
-        this.markService = markService;
-    }
-
+    // Первый - JSON по тем меткам, которые есть в исходных данных: одна метка - итоговое количество.
     @PostMapping(value = "/getMarksAndSumQuantity", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public @ResponseBody
-    byte[] getMarksAndSumQuantity(@RequestParam(value = "files") MultipartFile fileZip) throws Exception {
-        return objectMapper.writeValueAsString(markService.sumCointer(markService.parseArrayStringToMap(markService.parseZipToArrayString(fileZip)))).getBytes();
+    @ResponseBody
+    public byte[] getMarksAndSumQuantity(@RequestParam(value = "file") MultipartFile fileZip) throws Exception {
+        //System.out.printf("Got getMarksAndSumQuantity request. Filename: %s%n", fileZip.getOriginalFilename());
+        logger.debug("Got getMarksAndSumQuantity request. Filename: {}", fileZip.getOriginalFilename());
+        return objectMapper.writeValueAsString(markService.sumByMark(markService.processCsvList(markService.parseZipToCsvList(fileZip)))).getBytes();
     }
 
+    // Второй - как первый JSON, но включает все метки из эталонного списка, метки без количества - null.
+    @ResponseBody
     @PostMapping(value = "/getAllMarksAndQuantity", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public @ResponseBody
-    byte[] getAllMarksAndQuantity(@RequestParam(value = "files") MultipartFile fileZip) throws Exception {
-        return objectMapper.writeValueAsString(markService.parseArrayStringToMap((markService.parseZipToArrayString(fileZip)))).getBytes();
+    public byte[] getAllMarksAndQuantityWithBaseMarks(@RequestParam(value = "file") MultipartFile fileZip) throws Exception {
+        return objectMapper.writeValueAsString(markService.sumByMarkWithBaseMarks(markService.processCsvList((markService.parseZipToCsvList(fileZip))))).getBytes();
     }
 
+    // Третий - JSON по тем меткам, которые есть в исходных данных: одна метка - массив всех значений, по убыванию
+    @ResponseBody
     @PostMapping(value = "/getMarksAndQuantityWithoutNull", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public @ResponseBody
-    byte[] getMarksAndQuantityWithoutNull(@RequestParam(value = "files") MultipartFile fileZip) throws Exception {
-        return objectMapper.writeValueAsString(markService.selectMapsWithoutNull(markService.parseArrayStringToMap((markService.parseZipToArrayString(fileZip))))).getBytes();
+    public byte[] getMarksAndSortedQuantityWithoutNull(@RequestParam(value = "file") MultipartFile fileZip) throws Exception {
+        return objectMapper.writeValueAsString(markService.sortQuantity(markService.processCsvList((markService.parseZipToCsvList(fileZip))))).getBytes();
     }
 }
