@@ -1,29 +1,48 @@
 package com.example.demo.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.example.demo.ApplicationSettings;
+import com.example.demo.dto.Mark;
+import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class MarkService {
 
-    private final static Logger logger = LoggerFactory.getLogger(MarkService.class);
+    private final ApplicationSettings applicationSettings;
+    private final List<Mark> baseMarksList;
+
+    public MarkService(ApplicationSettings applicationSettings) {
+        this.applicationSettings = applicationSettings;
+        this.baseMarksList = applicationSettings.getBaseMarks().stream().map(Mark::new).collect(Collectors.toList());
+    }
 
     private final CsvMapper mapper = new CsvMapper()
-            .configure(CsvParser.Feature.ALLOW_COMMENTS, true)
-            .configure(CsvParser.Feature.WRAP_AS_ARRAY, true);
+            .enable(CsvParser.Feature.ALLOW_COMMENTS)
+            .enable(CsvParser.Feature.WRAP_AS_ARRAY);
+
+
+    public Map<Mark, List<Long>> sortQuantity(Map<Mark, List<Long>> mapToQuantityList) {
+        mapToQuantityList.values().forEach(list -> list.sort(Comparator.reverseOrder()));
+        return mapToQuantityList;
+    };
 
     public List<String> parseZipToCsvList(MultipartFile fileZip) throws Exception {
         String extension = FilenameUtils.getExtension(fileZip.getOriginalFilename());
@@ -36,11 +55,12 @@ public class MarkService {
             ZipEntry zipEntry = zis.getNextEntry();
             while (zipEntry != null) {
                 if (zipEntry.isDirectory()) {
-                    logger.debug("There is directory in the archive.");
+                    log.debug("There is directory in the archive.");
                 } else {
                     String entryName = FilenameUtils.getExtension(zipEntry.getName());
                     if (!entryName.equals("csv")) {
-                        logger.warn("A " + entryName + " file has been passed in the archive. Zip file has to include csv files.");
+                        log.warn("A " + entryName + " file has been passed in the archive. Zip file has to include csv files.");
+                        //todo: выдать исключение не инфор а варн если лог
                     }
                     StringBuilder s = new StringBuilder();
                     int read = 0;
@@ -59,76 +79,74 @@ public class MarkService {
         }
     }
 
-    public Map<String, List<Integer>> processCsvList(List<String> csvList) throws JsonProcessingException {
-        Map<String, List<Integer>> resultMarkToQuantityList = new HashMap<>();
+    public Map<Mark, List<Long>> processCsv(String csv) throws IOException {
+        HashMap<Mark, List<Long>> markToQuantities = new HashMap<>();
+        MappingIterator<String[]> csvRows = mapper.readerFor(String[].class).readValues(csv);
+
+        int rowNumber = 1;
+        while (csvRows.hasNext()) {
+            rowNumber++;
+            String[] row = csvRows.next();
+            Mark mark = new Mark(row[0]);
+            String quantity = row[1];
+            // if quantity = "" (empty), we should not try to parse it to number
+            if (StringUtils.hasText(quantity)) {
+                try {
+                    Long parsedQuantity = Long.parseLong(quantity);
+                    List<Long> quantityList = markToQuantities.computeIfAbsent(mark, (key) -> new ArrayList<>());
+                    quantityList.add(parsedQuantity);
+                } catch (Exception exc) {
+                    log.error("Got error while parsing csv. Row number: {}. Row: {}", rowNumber, row, exc);
+                    // todo: map to normal exception (with response status 4xx)
+                    throw exc;
+                }
+            } else {
+                log.warn("Got empty quantity. Row number: {}. Row: {}", rowNumber, row);
+            }
+        }
+        log.debug("Successfully processed csv. Row numbers: {}", rowNumber);
+        return markToQuantities;
+    }
+
+    public Map<Mark, List<Long>> processCsvList(List<String> csvList) throws IOException {
+        Map<Mark, List<Long>> resultMarkToQuantityList = new HashMap<>();
         for (String csv : csvList) {
-            logger.info("Обрабатывается строка: " + csv);
-            Map<String, List<Integer>> markToQuantityList = processCsv(csv);
-            for (Map.Entry<String, List<Integer>> markToQuantityListEntry : markToQuantityList.entrySet()) {
-                String mark = markToQuantityListEntry.getKey();
-                List<Integer> quantityList = markToQuantityListEntry.getValue();
-                List<Integer> resultQuantityList = resultMarkToQuantityList.computeIfAbsent(mark, (key) -> new ArrayList<>());
+            Map<Mark, List<Long>> markToQuantityList = processCsv(csv);
+            for (Map.Entry<Mark, List<Long>> markToQuantityListEntry : markToQuantityList.entrySet()) {
+                Mark mark = markToQuantityListEntry.getKey();
+                List<Long> quantityList = markToQuantityListEntry.getValue();
+                List<Long> resultQuantityList = resultMarkToQuantityList.computeIfAbsent(mark, (key) -> new ArrayList<>());
                 resultQuantityList.addAll(quantityList);
             }
         }
         return resultMarkToQuantityList;
     }
 
-    public Map<String, List<Integer>> processCsv(String csv) throws JsonProcessingException {
-        HashMap<String, List<Integer>> markToQuantities = new HashMap<>();
-        final String[] csvRows = csv.split("\n");
-        int rowNumber = 1;
-        for (int j = 0; j < csvRows.length; j++) {
-            if (!csvRows[j].contains("#")) {
-                rowNumber++;
-                String[] row = csvRows[j].split(",");
-                String mark = row[0];
-                String quantity = row[1];
-                if (StringUtils.hasText(quantity)) {
-                    try {
-                        Integer parsedQuantity = Integer.parseInt(quantity);
-                        List<Integer> quantityList = markToQuantities.computeIfAbsent(mark, (key) -> new ArrayList<>());
-                        quantityList.add(parsedQuantity);
-                    } catch (Exception exc) {
-                        logger.error("Got error while parsing csv. Row number: {}. Row: {}", rowNumber, row, exc);
-                        throw exc;
-                    }
-                } else {
-                    logger.warn("Got empty quantity. Row number: {}. Row: {}", rowNumber, row);
-                }
-            }
-        }
-        return markToQuantities;
-
-    }
-
-    public Map<String, List<Integer>> sortQuantity(Map<String, List<Integer>> mapToQuantityList) {
-        System.out.println("Нужно сделать так же:" + mapToQuantityList.toString());
-        mapToQuantityList.values().forEach(list -> list.sort(Comparator.reverseOrder()));
-        System.out.println("Нужно сделать так же2:" + mapToQuantityList);
-        return mapToQuantityList;
-    }
-
-    public Map<String, Integer> sumByMarkWithBaseMarks(Map<String, List<Integer>> markToQuantityList) {
-        Map<String, Integer> markToSumQuantity = sumByMark(markToQuantityList);
-        List<String> baseMarks = Arrays.asList("mark01", "mark17", "mark23", "mark35", "markFV", "markFX", "markFT");
-        baseMarks.forEach(baseMark -> {
-            if (!markToSumQuantity.containsKey(baseMark)) {
-                markToSumQuantity.put(baseMark, null);
-            }
-        });
-        return markToSumQuantity;
-    }
-
-    public Map<String, Integer> sumByMark(Map<String, List<Integer>> markToQuantityList) {
-        Map<String, Integer> mapAfterSort = new HashMap<>();
-        for (String k : markToQuantityList.keySet()) {
-            int sum = 0;
-            for (int d : markToQuantityList.get(k)) {
+    public Map<Mark, Long> sumByMark(Map<Mark, List<Long>> markToQuantityList) {
+        Map<Mark, Long> mapAfterSort = new HashMap<>();
+        for (Mark k : markToQuantityList.keySet()) {
+            long sum = 0;
+            for (long d : markToQuantityList.get(k)) {
                 sum += d;
             }
             mapAfterSort.put(k, sum);
         }
         return mapAfterSort;
     }
+
+    public Map<Mark, Long> sumByMarkWithBaseMarks(Map<Mark, List<Long>> markToQuantityList) {
+        Map<Mark, Long> markToSumQuantity = sumByMark(markToQuantityList);
+        baseMarksList.forEach(baseMark -> {
+            if (!markToSumQuantity.containsKey(baseMark)) {
+                markToSumQuantity.put(baseMark, null);
+            }
+        });
+
+        return markToSumQuantity;
+    }
 }
+
+
+
+
+

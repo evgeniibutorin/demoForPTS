@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import com.example.demo.service.MarkService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -14,9 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class MarkController {
-
-    private final static Logger logger = LoggerFactory.getLogger(MarkController.class);
 
     private final ObjectMapper objectMapper;
     private final MarkService markService;
@@ -25,7 +25,7 @@ public class MarkController {
     @PostMapping(value = "/getMarksAndSumQuantity", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     @ResponseBody
     public byte[] getMarksAndSumQuantity(@RequestParam(value = "file") MultipartFile fileZip) throws Exception {
-        logger.debug("Got getMarksAndSumQuantity request. Filename: {}", fileZip.getOriginalFilename());
+        log.debug("Got getMarksAndSumQuantity request. Filename: {}", fileZip.getOriginalFilename());
         return objectMapper.writeValueAsString(markService.sumByMark(markService.processCsvList(markService.parseZipToCsvList(fileZip)))).getBytes();
     }
 
