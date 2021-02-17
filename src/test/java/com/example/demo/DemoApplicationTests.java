@@ -32,7 +32,7 @@ class DemoApplicationTests {
     }
 
     private File getTestFile() throws IOException {
-        return ResourceUtils.getFile("classpath:request/content/source_archive.zip");
+        return ResourceUtils.getFile("src/test/java/resources/request/content/source_archive.zip");
     }
 
 }

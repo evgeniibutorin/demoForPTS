@@ -25,7 +25,6 @@ public class MarkController {
     @PostMapping(value = "/getMarksAndSumQuantity", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     @ResponseBody
     public byte[] getMarksAndSumQuantity(@RequestParam(value = "file") MultipartFile fileZip) throws Exception {
-        //System.out.printf("Got getMarksAndSumQuantity request. Filename: %s%n", fileZip.getOriginalFilename());
         logger.debug("Got getMarksAndSumQuantity request. Filename: {}", fileZip.getOriginalFilename());
         return objectMapper.writeValueAsString(markService.sumByMark(markService.processCsvList(markService.parseZipToCsvList(fileZip)))).getBytes();
     }
